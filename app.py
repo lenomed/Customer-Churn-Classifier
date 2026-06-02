@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import shap
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
@@ -15,17 +16,6 @@ print(df.describe())
 print(df.info())
 print(df.columns)
 
-
-"""'customerID', 'gender', 'SeniorCitizen', 'Partner', 'Dependents',
-       'tenure', 'PhoneService', 'MultipleLines', 'InternetService',
-       'OnlineSecurity', 'OnlineBackup', 'DeviceProtection', 'TechSupport',
-       'StreamingTV', 'StreamingMovies', 'Contract', 'PaperlessBilling',
-       'PaymentMethod', 'MonthlyCharges', 'TotalCharges', 'Churn']
-
-for fts in df:
-    sns.countplot(x=fts, data=df)
-    plt.show()
-    """
 
 
 # Data Cleaning
@@ -149,20 +139,6 @@ X = df.drop(["Churn", "TotalCharges"], axis=1)
 y = df["Churn"]
 X_train, X_test, y_train, y_test = train_test_split(X,y, test_size=.34, random_state=101, stratify=y)
 
-#instantiating the models
-
-model = LogisticRegression(class_weight='balanced',
-    max_iter=1000)
-
-model.fit(X_train, y_train)
-
-predictions = model.predict(X_test)
-
-#evaluating my model
-print(classification_report(y_test, predictions))
-print(confusion_matrix(y_test, predictions))
-#testing the importance of some features
-
 
 scale_pos_weight = len(y_train[y_train == 0]) / len(y_train[y_train == 1])
 
@@ -185,10 +161,18 @@ print(confusion_matrix(y_test, pred))
 
 from sklearn.metrics import roc_auc_score
 
-probs = model.predict_proba(X_test)[:, 1]
+probs = modelx.predict_proba(X_test)[:, 1]
 auc = roc_auc_score(y_test, probs)
 
 print("ROC AUC:", auc)
 
 
+# implementing shap
+# Create SHAP explainer for tree-based models
 
+explainer = shap.TreeExplainer(modelx)
+
+# Compute SHAP values for test set
+shap_values = explainer.shap_values(X_test)
+shap.summary_plot(shap_values, X_test)
+shap.summary_plot(shap_values, X_test, plot_type="bar")
