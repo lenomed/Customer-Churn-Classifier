@@ -6,7 +6,8 @@ import seaborn as sns
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-
+from sklearn.metrics import classification_report, confusion_matrix
+from xgboost import XGBClassifier
 
 df = pd.read_csv(r'C:\Users\kelec\source\repos\Customer-Churn-Classifier\WA_Fn-UseC_-Telco-Customer-Churn.csv')
 print(df.head(10))
@@ -72,6 +73,8 @@ df = pd.get_dummies(df, columns=['InternetService'], drop_first=True, dtype=int)
 """sns.countplot(df['Contract'])
 plt.show()"""
 
+sns.countplot(x='Churn', data=df)
+plt.show()
 #sns.countplot(df['PaymentMethod'])
 #plt.show()
 
@@ -118,5 +121,33 @@ print(corr_series)
 
 X = df.drop('Churn', axis=1)
 y=df['Churn']
-X_train, X_test, y_train, y_test = train_test_split(X,y, test_size=.34, random_state=101)
 
+X_train, X_test, y_train, y_test = train_test_split(X,y, test_size=.34, random_state=101, stratify=y)
+
+#instantiating the models
+
+model = LogisticRegression()
+
+model.fit(X_train, y_train)
+
+predictions = model.predict(X_test)
+
+#evaluating my model
+print(classification_report(y_test, predictions))
+print(confusion_matrix(y_test, predictions))
+
+
+modelx = XGBClassifier(
+    n_estimators=300,
+    learning_rate=0.04,
+    max_depth=2,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    eval_metric='logloss'
+)
+
+modelx.fit(X_train, y_train)
+pred = modelx.predict(X_test)
+print('below is XGboost and above is logistic')
+print(classification_report(y_test, pred))
+print(confusion_matrix(y_test, pred))
