@@ -1,0 +1,27 @@
+=== CHURN CORRELATION ANALYSIS ===
+
+Churn                                    1.000000
+InternetService_Fiber optic              0.308020
+PaymentMethod_Electronic check           0.301919
+MonthlyCharges                           0.193356
+PaperlessBilling                         0.191825
+SeniorCitizen                            0.150889
+MultipleLines_Yes                        0.040102
+PhoneService                             0.011942
+gender                                  -0.008612
+MultipleLines_No phone service          -0.011942
+PaymentMethod_Mailed check              -0.091683
+PaymentMethod_Credit card (automatic)   -0.134302
+Partner                                 -0.150448
+Dependents                              -0.164221
+Contract_One year                       -0.177820
+TotalCharges                            -0.199037
+StreamingTV                             -0.205742
+StreamingMovies                         -0.207256
+InternetService_No                      -0.227890
+DeviceProtection                        -0.281465
+OnlineBackup                            -0.291449
+Contract_Two year                       -0.302253
+TechSupport                             -0.329852
+OnlineSecurity                          -0.332819
+tenure                                  -0.352229

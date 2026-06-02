@@ -4,11 +4,37 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import shap
+import os
+from datetime import datetime
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix
 from xgboost import XGBClassifier
+from imblearn.over_sampling import SMOTE
+
+
+# create outputs dir if it do no t exist
+output_dir = 'outputs'
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+    print(f"Created '{output_dir}' directory")
+
+# save outputs
+def save_plot(filename):
+    """Save plot to outputs directory"""
+    filepath = os.path.join(output_dir, filename)
+    plt.savefig(filepath, dpi=300, bbox_inches='tight')
+    print(f"✓ Saved: {filepath}")
+    plt.close()
+
+def save_text(filename, content):
+    """Save text content to outputs directory"""
+    filepath = os.path.join(output_dir, filename)
+    with open(filepath, 'w') as f:
+        f.write(content)
+    print(f"✓ Saved: {filepath}")
+
 
 df = pd.read_csv(r'C:\Users\kelec\source\repos\Customer-Churn-Classifier\WA_Fn-UseC_-Telco-Customer-Churn.csv')
 print(df.head(10))
@@ -18,7 +44,7 @@ print(df.columns)
 
 
 
-# Data Cleaning
+# cleaning data
 df['gender'] = df['gender'].map({'Male': 1, 'Female': 0})
 df['Partner'] = df['Partner'].map({'Yes': 1, 'No': 0})
 df['Dependents'] = df['Dependents'].map({'Yes': 1, 'No': 0})
@@ -105,6 +131,9 @@ print(df['MonthlyCharges'])
 corr_series = df.corr(numeric_only=True)['Churn'].sort_values(ascending=False)
 print(corr_series)
 
+# SAVE CORRELATION ANALYSIS
+corr_report = f"=== CHURN CORRELATION ANALYSIS ===\n\n{corr_series.to_string()}\n"
+save_text('correlation_analysis.txt', corr_report)
 
 
 """# spliting my data
@@ -118,7 +147,7 @@ cols_to_drop = [
 #X = df.drop('Churn', axis=1)
 #y=df['Churn']
 
-# 1. testing feature engineering to know wether it would reduce redundancy FEATURE ENGINEERING
+# 1. FEATURE ENGINEERING TO KNOW WHETHER IT WOULD REDUCE REDUNDANCY
 
 # Avoid division by zero
 df["AvgChargePerTenure"] = df["TotalCharges"] / (df["tenure"] + 1)
@@ -137,11 +166,20 @@ df["HighRiskPayment"] = (df["PaymentMethod_Electronic check"] == 1).astype(int)
 
 X = df.drop(["Churn", "TotalCharges"], axis=1)
 y = df["Churn"]
-X_train, X_test, y_train, y_test = train_test_split(X,y, test_size=.34, random_state=101, stratify=y)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.34, random_state=101, stratify=y)
 
 
 scale_pos_weight = len(y_train[y_train == 0]) / len(y_train[y_train == 1])
 
+print(f"\n=== TRAINING INFO ===")
+print(f"Training set size: {len(X_train)}")
+print(f"Test set size: {len(X_test)}")
+print(f"Scale pos weight: {scale_pos_weight}")
+
+
+smote = SMOTE(random_state=42)
+
+X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
 
 modelx = XGBClassifier(
     scale_pos_weight=scale_pos_weight,
@@ -155,24 +193,56 @@ modelx = XGBClassifier(
 
 modelx.fit(X_train, y_train)
 pred = modelx.predict(X_test)
-print('below is XGboost and above is logistic')
-print(classification_report(y_test, pred))
-print(confusion_matrix(y_test, pred))
+
+print('\n=== XGBOOST RESULTS ===')
+classification_rep = classification_report(y_test, pred)
+print(classification_rep)
+
+conf_matrix = confusion_matrix(y_test, pred)
+print("\nConfusion Matrix:")
+print(conf_matrix)
+
+# SAVE CLASSIFICATION REPORT
+class_report_text = f"=== CLASSIFICATION REPORT ===\n\n{classification_rep}\n\n=== CONFUSION MATRIX ===\n\n{conf_matrix}\n"
+save_text('classification_report.txt', class_report_text)
+
 
 from sklearn.metrics import roc_auc_score
 
 probs = modelx.predict_proba(X_test)[:, 1]
 auc = roc_auc_score(y_test, probs)
 
-print("ROC AUC:", auc)
+print(f"\nROC AUC: {auc}")
+
+# SAVE ROC AUC SCORE
+auc_text = f"ROC AUC Score: {auc}\n"
+save_text('roc_auc_score.txt', auc_text)
 
 
-# implementing shap
+# IMPLEMENTING SHAP
+print("\n=== GENERATING SHAP EXPLANATIONS ===")
+
 # Create SHAP explainer for tree-based models
-
 explainer = shap.TreeExplainer(modelx)
 
 # Compute SHAP values for test set
 shap_values = explainer.shap_values(X_test)
-shap.summary_plot(shap_values, X_test)
-shap.summary_plot(shap_values, X_test, plot_type="bar")
+
+print("Creating SHAP summary plot...")
+plt.figure(figsize=(12, 8))
+shap.summary_plot(shap_values, X_test, show=False)
+save_plot('shap_summary_plot.png')
+
+
+print("Creating SHAP bar plot...")
+plt.figure(figsize=(12, 8))
+shap.summary_plot(shap_values, X_test, plot_type="bar", show=False)
+save_plot('shap_bar_plot.png')
+
+# OPTIONAL: Save SHAP force plot for first 5 predictions
+print("Creating SHAP force plots for first 5 predictions...")
+for i in range(min(5, len(X_test))):
+    plt.figure(figsize=(12, 4))
+    shap.force_plot(explainer.expected_value, shap_values[i:i+1], X_test.iloc[i:i+1], matplotlib=True, show=False)
+    save_plot(f'shap_force_plot_{i}.png')
+
