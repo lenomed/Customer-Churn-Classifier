@@ -73,8 +73,8 @@ df = pd.get_dummies(df, columns=['InternetService'], drop_first=True, dtype=int)
 """sns.countplot(df['Contract'])
 plt.show()"""
 
-sns.countplot(x='Churn', data=df)
-plt.show()
+#sns.countplot(x='Churn', data=df)
+#plt.show()
 #sns.countplot(df['PaymentMethod'])
 #plt.show()
 
@@ -117,16 +117,42 @@ print(corr_series)
 
 
 
-# spliting my data
+"""# spliting my data
+cols_to_drop = [
+    'Churn',
+    'TotalCharges',
+    'gender',
+    'PhoneService',
+    'MultipleLines_No phone service'
+]"""
+#X = df.drop('Churn', axis=1)
+#y=df['Churn']
 
-X = df.drop('Churn', axis=1)
-y=df['Churn']
+# 1. testing feature engineering to know wether it would reduce redundancy FEATURE ENGINEERING
 
+# Avoid division by zero
+df["AvgChargePerTenure"] = df["TotalCharges"] / (df["tenure"] + 1)
+
+df["ServiceScore"] = (
+    df["OnlineSecurity"] +
+    df["TechSupport"] +
+    df["DeviceProtection"] +
+    df["OnlineBackup"]
+)
+
+df["HighRiskPayment"] = (df["PaymentMethod_Electronic check"] == 1).astype(int)
+
+
+# 2. DROP TARGET + LEAKAGE FEATURES
+
+X = df.drop(["Churn", "TotalCharges"], axis=1)
+y = df["Churn"]
 X_train, X_test, y_train, y_test = train_test_split(X,y, test_size=.34, random_state=101, stratify=y)
 
 #instantiating the models
 
-model = LogisticRegression()
+model = LogisticRegression(class_weight='balanced',
+    max_iter=1000)
 
 model.fit(X_train, y_train)
 
@@ -135,11 +161,16 @@ predictions = model.predict(X_test)
 #evaluating my model
 print(classification_report(y_test, predictions))
 print(confusion_matrix(y_test, predictions))
+#testing the importance of some features
+
+
+scale_pos_weight = len(y_train[y_train == 0]) / len(y_train[y_train == 1])
 
 
 modelx = XGBClassifier(
-    n_estimators=300,
-    learning_rate=0.04,
+    scale_pos_weight=scale_pos_weight,
+    n_estimators=100,
+    learning_rate=0.03,
     max_depth=2,
     subsample=0.8,
     colsample_bytree=0.8,
@@ -151,3 +182,13 @@ pred = modelx.predict(X_test)
 print('below is XGboost and above is logistic')
 print(classification_report(y_test, pred))
 print(confusion_matrix(y_test, pred))
+
+from sklearn.metrics import roc_auc_score
+
+probs = model.predict_proba(X_test)[:, 1]
+auc = roc_auc_score(y_test, probs)
+
+print("ROC AUC:", auc)
+
+
+
